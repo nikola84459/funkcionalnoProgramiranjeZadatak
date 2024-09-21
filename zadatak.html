@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Nikola Vidović, 2017270241</title>
+</head>
+<body>
+	Broj indeks
+	<br>
+	<input id="indeks" type="text" name="indeks">
+	<button onclick="main();" id="dugme">Pokreni</button>
+	<br>
+	Rezultat: 
+	<br>
+	<textarea style="width: 15%; height: 100px;" id="podaci"></textarea>
+
+	<script>
+		function main() {
+			let indeks = document.getElementById("indeks").value;
+			fetch("http://zadatak.singidunum.ac.rs/app/funkcionalno/kolokvijum/?indeks=" + indeks)
+			.then(response => response.json())
+			.then(obecanje)
+		}
+
+		function obecanje(data) {
+			obrada(data)
+			.then(rezultat => {
+				if(rezultat.error === -2) {
+					document.getElementById("podaci").innerHTML = "";
+					document.getElementById("podaci").innerHTML = rezultat.message;
+				} else if (rezultat.error) {
+					document.getElementById("podaci").innerHTML = "";
+					document.getElementById("podaci").innerHTML = rezultat.message;	
+				} else {
+					document.getElementById("podaci").innerHTML = "";
+					rezultat.forEach(r => {
+						document.getElementById("podaci").innerHTML += r.smer + ": " + r.smerBroj + "\n"; 
+					});
+				}
+			})
+			.catch(greska => {
+				document.getElementById("podaci").innerHTML = "Došlo je do greške u obrati podataka."
+			});
+		}	
+
+		function obrada(data) {
+			return new Promise((uspesnoIspunjeno, neuspesnoIspunjeno) => {
+				let brIndeksaRegex = new RegExp("\^20[0-9]{8}");
+				let indeks = document.getElementById("indeks").value;
+				
+				if(!indeks) {
+					if(Object.prototype.toString.call(data) !== '[object Object]') {
+						neuspesnoIspunjeno(false);
+					} else if(!data.hasOwnProperty("error") && !data.hasOwnProperty("message")) {
+						neuspesnoIspunjeno(false)
+					} else if(data.error !== -1 && data.message !== "Index not set!") {
+						neuspesnoIspunjeno(false)
+
+					} else {
+						uspesnoIspunjeno(data);
+					}
+
+				} else if(!brIndeksaRegex.test(indeks)) {
+					if(Object.prototype.toString.call(data) !== '[object Object]') {
+						neuspesnoIspunjeno(false);	
+					} else if (!data.hasOwnProperty("error") && !data.hasOwnProperty("message")) {
+						neuspesnoIspunjeno(false);
+					} else if (data.error !== -2 && data.message !== "Index not in the correct format!") {
+						neuspesnoIspunjeno(false);
+					} else {
+						uspesnoIspunjeno(data)
+					}	
+				} else {
+					if (Object.prototype.toString.call(data) !== '[object Array]') {
+							neuspesnoIspunjeno(false);	
+
+						} else {
+							for(i in data) {
+								if(!data[i].hasOwnProperty("datum") && !data[i].hasOwnProperty("email") && !data[i].hasOwnProperty("smerovi")){
+									neuspesnoIspunjeno(false);
+							} 
+						}	
+
+						let studenti = data.filter(filterStudenti);
+									
+						let smerovi = studenti.map(mapFunkcija);
+
+						let objedinjeniSmerovi = objedini(smerovi);
+						
+						let prebrojani = objedinjeniSmerovi.reduce(prebroj, {});
+												
+						let jedinstveni = Object.getOwnPropertyNames(prebrojani);
+						let niz = [];
+						for(let smer of jedinstveni) {
+							niz.push(
+							{
+								smer: smer.toLowerCase(),
+								smerBroj: prebrojani[smer]
+
+							}
+						)
+					}
+					let sortiranje = niz.sort(sortirajNiz);
+					uspesnoIspunjeno(sortiranje);
+					}
+				}
+		});
+	}
+
+	function filterStudenti(studenti) {
+		let emailGmail = new RegExp("\[a-z]+.[1-9]{2,3}.[a-z]+@gmail.com");
+		let emailYahoo = new RegExp("\[a-z]+.[1-9]{2,3}.[a-z]+@yahoo.com");
+
+		if(Number((studenti.datum.substr(0,4)) > 2015 && Number(studenti.datum.substr(0,4)) <= 2022) && (emailGmail.test(studenti.email) || emailYahoo.test(studenti.email))) {
+			return true;
+		}
+	}
+
+	function mapFunkcija(smer) {
+			return smer.smerovi;	
+		}
+
+	function objedini(smerovi) {
+		let objedinjeni = []
+		for(i in smerovi) {
+			for(j in smerovi[i]) {
+				objedinjeni.push(smerovi[i][j]);
+			}
+		}
+		return objedinjeni;
+	}
+
+	function prebroj(a, b) {
+			if(!a.hasOwnProperty(b)) {
+				a[b] = 0;
+			}
+			a[b]++;
+			return a			
+		}
+
+		function sortirajNiz(a, b) {
+			if(a.smerBroj < b.smerBroj) {
+				return -1
+			}
+			return 0;
+		}
+	 
+	</script>
+	
+</body>
+</html>
